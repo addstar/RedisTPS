@@ -14,7 +14,10 @@ public class Config {
 	static FileConfiguration conf;
 	RedisTPS plugin;
 	static String ntpHost;
-
+	static int heartbeatTimeout;
+	static int checkInterval;
+	static Boolean checkOthers;
+	
 	public Config(RedisTPS plug, File dataFolder) {
 		this.plugin = plug;
 		file = new File(dataFolder, "config.yml");
@@ -25,13 +28,23 @@ public class Config {
         String redisPassword = conf.getString("redis-password");
         String serverID = conf.getString("server-id");
         ntpHost = conf.getString("NTP-host");
-		
+        checkOthers = conf.getBoolean("check-others");
+
+		heartbeatTimeout = conf.getInt("heartbeat-timeout", 10);
+		checkInterval = conf.getInt("check-interval", 3);
+
         if (redisPassword != null && (redisPassword.isEmpty() || redisPassword.equals("none"))) {
             redisPassword = null;
         }
         
+		if (Config.ntpHost.isEmpty()) {
+			plug.getLogger().info("NTP client disabled.");
+		} else {
+			plug.getLogger().info("NTP client enabled.");
+		}
+		
         if (serverID == null || serverID.isEmpty()) {
-            throw new RuntimeException("server-id not specified in configuration or empty");
+            serverID = Bukkit.getServerName();
         }
         plugin.setServerID(serverID);
 

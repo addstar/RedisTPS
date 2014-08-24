@@ -1,6 +1,13 @@
 redis-server: localhost
 redis-port: 6379
 redis-password: none
-server-id: "serverID"
 
-NTP-host: "0.europe.pool.ntp.org"
+# If left blank, server-name will be retrieved from server properties
+server-id: ""
+
+# eg. 0.europe.pool.ntp.org"
+NTP-host: ""
+
+interval: 3
+check-others: false
+heartbeat-timeout: 10

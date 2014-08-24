@@ -50,7 +50,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
 		saveDefaultConfig();
 		new Config(this, dataFolder);
 		
-		//this.getCommand("spawnset").setExecutor(new SpawnSetCommand());
+		getLogger().info("Server ID: " + serverID);
 		
 		Bukkit.getPluginManager().registerEvents(this, this);
 		
@@ -58,26 +58,33 @@ public class RedisTPS extends JavaPlugin implements Listener {
 		
 		Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
             public void run() {
-            	long time = getTime();
+            	long time;
+            	if (Config.ntpHost.isEmpty()) {
+            		time = new Date().getTime();
+            	} else {
+                	time = getTime();
+            	}
             	Jedis rsc = pool.getResource();
                 try {
                     Pipeline pipeline = rsc.pipelined();
                     pipeline.hset("RedisTPS_heartbeats", serverID, String.valueOf(time));
                     pipeline.hset("RedisTPS_TPS", serverID, String.valueOf(Math.round(TPS.getTPS(100) * 100.0) / 100.0d));
                     pipeline.hset("RedisTPS_Players", serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
-                    pipeline.expire("RedisTPS_heartbeats", 4);
-                    Response<Map<String, String>> response = pipeline.hgetAll("RedisTPS_heartbeats");
-                    pipeline.sync();
-                    
-                    for (String key : response.get().keySet()) {
-                    	if (key == serverID) continue;
-                    	
-                    	if ((time - Long.parseLong(rsc.hget("RedisTPS_heartbeats", key))) > 350) {
-                    		getLogger().log(Level.WARNING, "Server " + key + " has no refresh hearbeat for 3 seconds, did it crash ?");
-                    		rsc.hdel("RedisTPS_heartbeats", key);
-                    	}
+                    pipeline.expire("RedisTPS_heartbeats", (Config.heartbeatTimeout + 1));
+
+                    if (Config.checkOthers) {
+	                    Response<Map<String, String>> response = pipeline.hgetAll("RedisTPS_heartbeats");
+	                    pipeline.sync();
+	                    
+	                    for (String key : response.get().keySet()) {
+	                    	if (key == serverID) continue;
+	                    	
+	                    	if ((time - Long.parseLong(rsc.hget("RedisTPS_heartbeats", key))) > ((Config.heartbeatTimeout * 1000) + 500)) {
+	                    		getLogger().log(Level.WARNING, "Server " + key + " has no refresh hearbeat for " + Config.heartbeatTimeout + " seconds, did it crash ?");
+	                    		rsc.hdel("RedisTPS_heartbeats", key);
+	                    	}
+	                    }
                     }
-                    
                 } catch (JedisConnectionException e) {
                     getLogger().log(Level.SEVERE, "Unable to refresh heartbeat, did your Redis server go away?", e);
                     pool.returnBrokenResource(rsc);
@@ -85,7 +92,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
                 	pool.returnResource(rsc);
                 }
             }
-        }, 0, 20*3);
+        }, 0, 20*Config.checkInterval);
 		
 	}
 	
