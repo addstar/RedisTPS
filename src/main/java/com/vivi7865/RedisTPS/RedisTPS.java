@@ -12,7 +12,6 @@ import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.PluginDescriptionFile;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -64,6 +63,12 @@ public class RedisTPS extends JavaPlugin implements Listener {
             	} else {
                 	time = getTime();
             	}
+
+            	if (pool == null) {
+            		getLogger().warning("Not connected to Redis!");
+            		return;
+            	}
+            	
             	Jedis rsc = pool.getResource();
                 try {
                     Pipeline pipeline = rsc.pipelined();
@@ -92,7 +97,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
                 	pool.returnResource(rsc);
                 }
             }
-        }, 0, 20*Config.checkInterval);
+        }, 20*Config.checkInterval, 20*Config.checkInterval);
 		
 	}
 	
@@ -112,11 +117,6 @@ public class RedisTPS extends JavaPlugin implements Listener {
 			getLogger().log(Level.SEVERE, "Unable to get time from NTP server, did your NTP server go away?", e);
 		}
 		return 0;
-	}
-	
-	//@EventHandler
-	public void onPJ(PlayerJoinEvent e) {
-		
 	}
 	
 	public void setServerID(String serverID) {
