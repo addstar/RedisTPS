@@ -15,8 +15,8 @@ public class Config {
 	RedisTPS plugin;
 	static String ntpHost;
 	static int heartbeatTimeout;
-	static int checkInterval;
-	static Boolean checkOthers;
+	static int checkOthers;
+	static int intervalTPS, intervalPlayers, intervalMemory, intervalHeartbeat;
 	
 	public Config(RedisTPS plug, File dataFolder) {
 		this.plugin = plug;
@@ -28,10 +28,13 @@ public class Config {
         String redisPassword = conf.getString("redis-password");
         String serverID = conf.getString("server-id");
         ntpHost = conf.getString("NTP-host");
-        checkOthers = conf.getBoolean("check-others");
-
 		heartbeatTimeout = conf.getInt("heartbeat-timeout", 10);
-		checkInterval = conf.getInt("check-interval", 3);
+		
+		intervalTPS = conf.getInt("interval.tps", 3);
+		intervalPlayers = conf.getInt("interval.players", 20);
+		intervalMemory = conf.getInt("interval.memory", 60);
+		intervalHeartbeat = conf.getInt("interval.heartbeat", 5);
+        checkOthers = conf.getInt("interval.check-others", 0);
 
         if (redisPassword != null && (redisPassword.isEmpty() || redisPassword.equals("none"))) {
             redisPassword = null;

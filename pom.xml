@@ -2,12 +2,12 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>BungeeTPS</groupId>
-  <artifactId>BungeeTPS</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <groupId>com.vivi7865</groupId>
+  <artifactId>RedisTPS</artifactId>
+  <version>0.0.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>BungeeTPS</name>
+  <name>RedisTPS</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -30,15 +30,15 @@
                             <relocations>
                                 <relocation>
                                     <pattern>redis.clients.jedis</pattern>
-                                    <shadedPattern>com.vivi7865.BungeeTPS.internal.jedis</shadedPattern>
+                                    <shadedPattern>com.vivi7865.RedisTPS.internal.jedis</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>redis.clients.util</pattern>
-                                    <shadedPattern>com.vivi7865.BungeeTPS.internal.jedisutil</shadedPattern>
+                                    <shadedPattern>com.vivi7865.RedisTPS.internal.jedisutil</shadedPattern>
                                 </relocation>
                                 <relocation>
                                     <pattern>org.apache.commons.pool</pattern>
-                                    <shadedPattern>com.vivi7865.BungeeTPS.internal.commonspool</shadedPattern>
+                                    <shadedPattern>com.vivi7865.RedisTPS.internal.commonspool</shadedPattern>
                                 </relocation> 
                             </relocations>
                         </configuration>

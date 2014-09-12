@@ -8,6 +8,12 @@ server-id: ""
 # eg. 0.europe.pool.ntp.org"
 NTP-host: ""
 
-interval: 3
-check-others: false
+intervals:
+  tps: 3
+  players: 20
+  memory: 60
+  heartbeat: 5
+  check-others: 0
+
+# If checking other hosts, how old a heartbeat timestamp can be (in seconds) before raising an alarm 
 heartbeat-timeout: 10
