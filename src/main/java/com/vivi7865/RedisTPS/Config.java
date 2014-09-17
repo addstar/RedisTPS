@@ -59,7 +59,9 @@ public class Config {
 	                    JedisPoolConfig config = new JedisPoolConfig();
 	                    config.setMaxTotal(conf.getInt("max-redis-connections", -1));
 	                    config.setJmxEnabled(false);
-	                    plugin.setPool(new JedisPool(config, redisServer, redisPort, 0, finalRedisPassword));
+	                    JedisPool pool = new JedisPool(config, redisServer, redisPort, 0, finalRedisPassword);
+	                    plugin.setPool(pool);
+	                    pool.getResource().clientSetname("RedisTPS-" + Bukkit.getServerName());
 				}
             });
             
