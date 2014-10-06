@@ -13,9 +13,12 @@ public class TPS implements Runnable {
 			return 20.0D;
 		}
 		int target = (tick_count- 1 - ticks) % TICKS.length;
-		long elapsed = System.currentTimeMillis() - TICKS[target];
-
-		return ticks / (elapsed / 1000.0D);
+		if (target >= 0) {
+			long elapsed = System.currentTimeMillis() - TICKS[target];
+			return ticks / (elapsed / 1000.0D);
+		} else {
+			return 20.0D;
+		}
 	}
 
 	public static long getElapsed(int tickID) {
