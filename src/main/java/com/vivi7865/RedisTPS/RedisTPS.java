@@ -102,12 +102,12 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                    if (doPlayers) pipeline.hset("RedisTPS_Players", serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
 	
 	                    if (doMemory) {
-	                        pipeline.expire("RedisTPS_RamMax", (Config.intervalMemory + 5));
-	                        pipeline.expire("RedisTPS_RamTotal", (Config.intervalMemory + 5));
-	                        pipeline.expire("RedisTPS_RamFree", (Config.intervalMemory + 5));
 	                    	pipeline.hset("RedisTPS_RamMax", serverID, String.valueOf(getMaxRam()));
 	                    	pipeline.hset("RedisTPS_RamTotal", serverID, String.valueOf(getTotalRam()));
 	                    	pipeline.hset("RedisTPS_RamFree", serverID, String.valueOf(getFreeRam()));
+	                        pipeline.expire("RedisTPS_RamMax", (Config.intervalMemory + 5));
+	                        pipeline.expire("RedisTPS_RamTotal", (Config.intervalMemory + 5));
+	                        pipeline.expire("RedisTPS_RamFree", (Config.intervalMemory + 5));
 	                    }
 	
 	                    if (doCheckOthers) {
