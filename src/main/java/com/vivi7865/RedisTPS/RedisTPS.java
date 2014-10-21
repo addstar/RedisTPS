@@ -34,6 +34,9 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	            rsc.hdel("RedisTPS_Heartbeats", serverID);
 	            rsc.hdel("RedisTPS_TPS", serverID);
 	            rsc.hdel("RedisTPS_Players", serverID);
+	            rsc.hdel("RedisTPS_RamTotal", serverID);
+	            rsc.hdel("RedisTPS_RamFree", serverID);
+	            rsc.hdel("RedisTPS_RamMax", serverID);
 	        } finally {
 	            pool.returnResource(rsc);
 	        }
