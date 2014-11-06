@@ -58,7 +58,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
 		Bukkit.getServer().getScheduler().scheduleSyncRepeatingTask(this, new TPS(), 100L, 1L);
 		
 		Bukkit.getScheduler().runTaskTimerAsynchronously(this, new Runnable() {
-			int runcount = 0;
+			int runcount = -1;
             public void run() {
             	boolean doHeartbeat = false;
             	boolean doTPS = false;
@@ -66,14 +66,25 @@ public class RedisTPS extends JavaPlugin implements Listener {
             	boolean doMemory = false; 
             	boolean doCheckOthers = false;
 
-            	if (runcount == 86400) runcount = 0;  // loop every 24h
-            	runcount++;
-
-            	if (Config.intervalHeartbeat > 0 && (runcount % Config.intervalHeartbeat) == 0) doHeartbeat = true; 
-            	if (Config.intervalTPS > 0 && (runcount % Config.intervalTPS) == 0) doTPS = true; 
-            	if (Config.intervalPlayers > 0 && (runcount % Config.intervalPlayers) == 0) doPlayers = true; 
-            	if (Config.intervalMemory > 0 && (runcount % Config.intervalMemory) == 0) doMemory = true; 
-            	if (Config.checkOthers > 0 && (runcount % Config.checkOthers) == 0) doCheckOthers = true; 
+            	if (runcount == -1) {
+            		// First run
+            		doHeartbeat = true;
+            		doTPS = true;
+            		doPlayers = true;
+            		doMemory = true;
+            		doCheckOthers = true;
+            		runcount = 1;
+            	} else {
+            		// Every time after that
+	            	if (runcount == 86400) runcount = 0;  // loop every 24h
+	            	runcount++;
+	
+	            	if (Config.intervalHeartbeat > 0 && (runcount % Config.intervalHeartbeat) == 0) doHeartbeat = true; 
+	            	if (Config.intervalTPS > 0 && (runcount % Config.intervalTPS) == 0) doTPS = true; 
+	            	if (Config.intervalPlayers > 0 && (runcount % Config.intervalPlayers) == 0) doPlayers = true; 
+	            	if (Config.intervalMemory > 0 && (runcount % Config.intervalMemory) == 0) doMemory = true; 
+	            	if (Config.checkOthers > 0 && (runcount % Config.checkOthers) == 0) doCheckOthers = true;
+            	}
 
             	// Abort this run if we don't have anything to do
             	if (!doHeartbeat && !doTPS && !doPlayers && !doMemory && !doCheckOthers) return;
@@ -135,7 +146,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                }
             	}
             }
-        }, 100L, 20L);
+        }, 200L, 20L);
 		
 	}
 	
