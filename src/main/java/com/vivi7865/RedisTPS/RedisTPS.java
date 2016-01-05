@@ -112,7 +112,14 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                try {
 	                    Pipeline pipeline = rsc.pipelined();
 	                    if (doHeartbeat) pipeline.hset("RedisTPS_Heartbeats", serverID, String.valueOf(time));
-	                    if (doTPS) pipeline.hset("RedisTPS_TPS", serverID, String.valueOf(Math.round(TPS.getTPS(100) * 100.0) / 100.0d));
+	                    if (doTPS) {
+							double tps = Math.round(TPS.getTPS(100) * 100.0) / 100.0d;
+							if (tps > 20.0) {
+								// Cap TPS at 20
+								tps = 20.0;
+							}
+							pipeline.hset("RedisTPS_TPS", serverID, String.valueOf(tps));
+	                    }
 	                    if (doPlayers) pipeline.hset("RedisTPS_Players", serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
 	
 	                    if (doMemory) {
