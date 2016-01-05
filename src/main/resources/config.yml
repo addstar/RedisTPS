@@ -13,7 +13,13 @@ intervals:
   players: 20
   memory: 60
   heartbeat: 5
+  chunks: 30
+  entities: 30
   check-others: 0
+
+chunk-worlds: []
+
+entity-worlds: []
 
 # If checking other hosts, how old a heartbeat timestamp can be (in seconds) before raising an alarm 
 heartbeat-timeout: 10

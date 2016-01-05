@@ -5,19 +5,18 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Date;
-import java.util.Map;
 import java.util.logging.Level;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.Pipeline;
-import redis.clients.jedis.Response;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisTPS extends JavaPlugin implements Listener {
@@ -31,12 +30,12 @@ public class RedisTPS extends JavaPlugin implements Listener {
 		Jedis rsc = pool.getResource();
 		if (rsc != null) {
 			try {
-	            rsc.hdel("RedisTPS_Heartbeats", serverID);
-	            rsc.hdel("RedisTPS_TPS", serverID);
-	            rsc.hdel("RedisTPS_Players", serverID);
-	            rsc.hdel("RedisTPS_RamTotal", serverID);
-	            rsc.hdel("RedisTPS_RamFree", serverID);
-	            rsc.hdel("RedisTPS_RamMax", serverID);
+	            rsc.del("RedisTPS.heartbeat." + serverID);
+	            rsc.del("RedisTPS.tps." + serverID);
+	            rsc.del("RedisTPS.players." + serverID);
+	            rsc.del("RedisTPS.ram_total." + serverID);
+	            rsc.del("RedisTPS.ram_free." + serverID);
+	            rsc.del("RedisTPS.ram_max." + serverID);
 	        } finally {
 	            pool.returnResource(rsc);
 	        }
@@ -64,7 +63,8 @@ public class RedisTPS extends JavaPlugin implements Listener {
             	boolean doTPS = false;
             	boolean doPlayers = false;
             	boolean doMemory = false; 
-            	boolean doCheckOthers = false;
+				boolean doEntityCheck = false;
+				boolean doChunkCheck = false;
 
             	if (runcount == -1) {
             		// First run
@@ -72,7 +72,8 @@ public class RedisTPS extends JavaPlugin implements Listener {
             		doTPS = true;
             		doPlayers = true;
             		doMemory = true;
-            		doCheckOthers = true;
+					doEntityCheck = true;
+					doChunkCheck = true;
             		runcount = 1;
             	} else {
             		// Every time after that
@@ -83,11 +84,12 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	            	if (Config.intervalTPS > 0 && (runcount % Config.intervalTPS) == 0) doTPS = true; 
 	            	if (Config.intervalPlayers > 0 && (runcount % Config.intervalPlayers) == 0) doPlayers = true; 
 	            	if (Config.intervalMemory > 0 && (runcount % Config.intervalMemory) == 0) doMemory = true; 
-	            	if (Config.checkOthers > 0 && (runcount % Config.checkOthers) == 0) doCheckOthers = true;
+					if (Config.intervalEntities > 0 && (runcount % Config.intervalEntities) == 0) doEntityCheck = true;
+					if (Config.intervalChunks > 0 && (runcount % Config.intervalChunks) == 0) doChunkCheck = true;
             	}
 
             	// Abort this run if we don't have anything to do
-            	if (!doHeartbeat && !doTPS && !doPlayers && !doMemory && !doCheckOthers) return;
+				if (!doHeartbeat && !doTPS && !doPlayers && !doMemory && !doEntityCheck && !doChunkCheck) return;
 
             	long time;
             	if (Config.ntpHost.isEmpty()) {
@@ -111,40 +113,50 @@ public class RedisTPS extends JavaPlugin implements Listener {
             	if (rsc != null) {
 	                try {
 	                    Pipeline pipeline = rsc.pipelined();
-	                    if (doHeartbeat) pipeline.hset("RedisTPS_Heartbeats", serverID, String.valueOf(time));
+	                    if (doHeartbeat) {
+							pipeline.set("RedisTPS.heartbeat." + serverID, String.valueOf(time));
+	                        pipeline.expire("RedisTPS.heartbeat." + serverID, (Config.intervalHeartbeat + 5));
+	                    }
+
 	                    if (doTPS) {
 							double tps = Math.round(TPS.getTPS(100) * 100.0) / 100.0d;
 							if (tps > 20.0) {
 								// Cap TPS at 20
 								tps = 20.0;
 							}
-							pipeline.hset("RedisTPS_TPS", serverID, String.valueOf(tps));
+							pipeline.set("RedisTPS.tps." + serverID, String.valueOf(tps));
+	                        pipeline.expire("RedisTPS.tps." + serverID, (Config.intervalTPS + 5));
 	                    }
-	                    if (doPlayers) pipeline.hset("RedisTPS_Players", serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
+
+	                    if (doPlayers) {
+							pipeline.set("RedisTPS.players." + serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
+	                        pipeline.expire("RedisTPS.players." + serverID, (Config.intervalPlayers + 5));
+	                    }
 	
 	                    if (doMemory) {
-	                    	pipeline.hset("RedisTPS_RamMax", serverID, String.valueOf(getMaxRam()));
-	                    	pipeline.hset("RedisTPS_RamTotal", serverID, String.valueOf(getTotalRam()));
-	                    	pipeline.hset("RedisTPS_RamFree", serverID, String.valueOf(getFreeRam()));
-	                        pipeline.expire("RedisTPS_RamMax", (Config.intervalMemory + 5));
-	                        pipeline.expire("RedisTPS_RamTotal", (Config.intervalMemory + 5));
-	                        pipeline.expire("RedisTPS_RamFree", (Config.intervalMemory + 5));
+							pipeline.set("RedisTPS.ram_max." + serverID, String.valueOf(getMaxRam()));
+							pipeline.set("RedisTPS.ram_total." + serverID, String.valueOf(getTotalRam()));
+							pipeline.set("RedisTPS.ram_free." + serverID, String.valueOf(getFreeRam()));
+	                        pipeline.expire("RedisTPS.ram_max." + serverID, (Config.intervalMemory + 5));
+	                        pipeline.expire("RedisTPS.ram_total." + serverID, (Config.intervalMemory + 5));
+	                        pipeline.expire("RedisTPS.ram_free." + serverID, (Config.intervalMemory + 5));
 	                    }
-	
-	                    if (doCheckOthers) {
-	                        pipeline.expire("RedisTPS_Heartbeats", (Config.heartbeatTimeout + 1));
-		                    Response<Map<String, String>> response = pipeline.hgetAll("RedisTPS_Heartbeats");
-		                    pipeline.sync();
-		                    
-		                    for (String key : response.get().keySet()) {
-		                    	if (key == serverID) continue;
-		                    	
-		                    	if ((time - Long.parseLong(response.get().get(key))) > ((Config.heartbeatTimeout * 1000) + 500)) {
-		                    		getLogger().log(Level.WARNING, "Server " + key + " has no refresh hearbeat for " + Config.heartbeatTimeout + " seconds, did it crash ?");
-		                    		rsc.hdel("RedisTPS_Heartbeats", key);
-		                    	}
-		                    }
-	                    }
+
+						if (doEntityCheck) {
+							for (World w : Config.entityWorlds) {
+								pipeline.set("RedisTPS.entities." + w.getName(), String.valueOf(w.getEntities().size()));
+		                        pipeline.expire("RedisTPS.entities." + w.getName(), (Config.intervalEntities + 5));
+								pipeline.set("RedisTPS_livingentities." + w.getName(), String.valueOf(w.getLivingEntities().size()));
+		                        pipeline.expire("RedisTPS.livingentities." + w.getName(), (Config.intervalEntities + 5));
+							}
+						}
+
+						if (doChunkCheck) {
+							for (World w : Config.chunkWorlds) {
+								pipeline.set("RedisTPS.chunks." + w.getName(), String.valueOf(w.getLoadedChunks().length));
+		                        pipeline.expire("RedisTPS.chunks." + w.getName(), (Config.intervalChunks + 5));
+							}
+						}
 	                } catch (JedisConnectionException e) {
 	                    getLogger().log(Level.SEVERE, "Unable to refresh stats, did your Redis server go away?", e);
 	                    pool.returnBrokenResource(rsc);

@@ -1,8 +1,12 @@
 package com.vivi7865.RedisTPS;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.logging.Level;
 
 import org.bukkit.Bukkit;
+import org.bukkit.World;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 
@@ -15,8 +19,9 @@ public class Config {
 	RedisTPS plugin;
 	static String ntpHost;
 	static int heartbeatTimeout;
-	static int checkOthers;
-	static int intervalTPS, intervalPlayers, intervalMemory, intervalHeartbeat;
+	static int intervalTPS, intervalPlayers, intervalMemory, intervalHeartbeat, intervalEntities, intervalChunks;
+	static List<World> chunkWorlds = new ArrayList<World>();
+	static List<World> entityWorlds = new ArrayList<World>();
 	
 	public Config(RedisTPS plug, File dataFolder) {
 		this.plugin = plug;
@@ -34,7 +39,32 @@ public class Config {
 		intervalPlayers = conf.getInt("interval.players", 20);
 		intervalMemory = conf.getInt("interval.memory", 60);
 		intervalHeartbeat = conf.getInt("interval.heartbeat", 5);
-        checkOthers = conf.getInt("interval.check-others", 0);
+		intervalEntities = conf.getInt("interval.entities", 30);
+		intervalChunks = conf.getInt("interval.chunks", 30);
+
+		List<String> strWorlds = (List<String>) conf.getStringList("chunk-worlds");
+		if ((strWorlds != null) && (strWorlds.size() > 0)) {
+			for (String w : strWorlds) {
+				World world = plugin.getServer().getWorld(w);
+				if (world == null) {
+					plugin.getLogger().log(Level.WARNING, "Invalid world \"" + w + "\" in chunk world list!");
+				} else {
+					chunkWorlds.add(world);
+				}
+			}
+		}
+
+		strWorlds = (List<String>) conf.getStringList("entity-worlds");
+		if ((strWorlds != null) && (strWorlds.size() > 0)) {
+			for (String w : strWorlds) {
+				World world = plugin.getServer().getWorld(w);
+				if (world == null) {
+					plugin.getLogger().log(Level.WARNING, "Invalid world \"" + w + "\" in entity world list!");
+				} else {
+					entityWorlds.add(world);
+				}
+			}
+		}
 
         if (redisPassword != null && (redisPassword.isEmpty() || redisPassword.equals("none"))) {
             redisPassword = null;
