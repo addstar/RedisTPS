@@ -5,14 +5,20 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
 import org.apache.commons.net.ntp.TimeInfo;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import com.google.common.collect.Iterables;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
@@ -117,6 +123,42 @@ public class RedisTPS extends JavaPlugin implements Listener {
 							pipeline.set("RedisTPS.heartbeat." + serverID, String.valueOf(time));
 	                        pipeline.expire("RedisTPS.heartbeat." + serverID, (Config.intervalHeartbeat + 5));
 	                    }
+	                    
+	                    if (doPlayers || doChunkCheck || doEntityCheck) {
+	                    	SyncData.Loader loader = new SyncData.Loader(doPlayers, doEntityCheck, doChunkCheck);
+	                    	Bukkit.getScheduler().runTask(RedisTPS.this, loader);
+	                    	
+	                    	try {
+	                    		SyncData data = loader.get();
+	                    		
+	                    		if (doPlayers) {
+	    							pipeline.set("RedisTPS.players." + serverID, String.valueOf(data.playerCount));
+	    	                        pipeline.expire("RedisTPS.players." + serverID, (Config.intervalPlayers + 5));
+	    	                    }
+	                    		
+	                    		if (doEntityCheck) {
+	    							for (World w : data.allEntities.keySet()) {
+	    								List<Entity> entities = data.allEntities.get(w);
+	    								
+	    								pipeline.set("RedisTPS.entities." + serverID + "." + w.getName(), String.valueOf(entities.size()));
+	    								pipeline.set("RedisTPS.livingentities." + serverID + "."  + w.getName(), String.valueOf(Iterables.size(Iterables.filter(entities, LivingEntity.class))));
+	    								pipeline.expire("RedisTPS.entities." + serverID + "."  + w.getName(), (Config.intervalEntities + 5));
+	    		                        pipeline.expire("RedisTPS.livingentities." + serverID + "."  + w.getName(), (Config.intervalEntities + 5));
+	    							}
+	    						}
+	    						
+	    						if (doChunkCheck) {
+	    							for (World w : data.chunkCount.keySet()) {
+	    								pipeline.set("RedisTPS.chunks." + w.getName(), String.valueOf(data.chunkCount.get(w)));
+	    		                        pipeline.expire("RedisTPS.chunks." + w.getName(), (Config.intervalChunks + 5));
+	    							}
+	    						}
+	                    	} catch (InterruptedException e) {
+	                    		getLogger().log(Level.WARNING, "Grabbing data was interruped", e.getCause());
+	                    	} catch (ExecutionException e) {
+	                    		getLogger().log(Level.SEVERE, "An error occured while grabbing data", e.getCause());
+	                    	}
+	                    }
 
 	                    if (doTPS) {
 							double tps = Math.round(TPS.getTPS(100) * 100.0) / 100.0d;
@@ -128,11 +170,6 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                        pipeline.expire("RedisTPS.tps." + serverID, (Config.intervalTPS + 5));
 	                    }
 
-	                    if (doPlayers) {
-							pipeline.set("RedisTPS.players." + serverID, String.valueOf(Bukkit.getOnlinePlayers().length));
-	                        pipeline.expire("RedisTPS.players." + serverID, (Config.intervalPlayers + 5));
-	                    }
-	
 	                    if (doMemory) {
 							pipeline.set("RedisTPS.ram_max." + serverID, String.valueOf(getMaxRam()));
 							pipeline.set("RedisTPS.ram_total." + serverID, String.valueOf(getTotalRam()));
@@ -141,22 +178,6 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                        pipeline.expire("RedisTPS.ram_total." + serverID, (Config.intervalMemory + 5));
 	                        pipeline.expire("RedisTPS.ram_free." + serverID, (Config.intervalMemory + 5));
 	                    }
-
-						if (doEntityCheck) {
-							for (World w : Config.entityWorlds) {
-								pipeline.set("RedisTPS.entities." + w.getName(), String.valueOf(w.getEntities().size()));
-		                        pipeline.expire("RedisTPS.entities." + w.getName(), (Config.intervalEntities + 5));
-								pipeline.set("RedisTPS_livingentities." + w.getName(), String.valueOf(w.getLivingEntities().size()));
-		                        pipeline.expire("RedisTPS.livingentities." + w.getName(), (Config.intervalEntities + 5));
-							}
-						}
-
-						if (doChunkCheck) {
-							for (World w : Config.chunkWorlds) {
-								pipeline.set("RedisTPS.chunks." + w.getName(), String.valueOf(w.getLoadedChunks().length));
-		                        pipeline.expire("RedisTPS.chunks." + w.getName(), (Config.intervalChunks + 5));
-							}
-						}
 	                } catch (JedisConnectionException e) {
 	                    getLogger().log(Level.SEVERE, "Unable to refresh stats, did your Redis server go away?", e);
 	                    pool.returnBrokenResource(rsc);
