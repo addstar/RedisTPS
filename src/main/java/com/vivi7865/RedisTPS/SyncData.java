@@ -42,7 +42,7 @@ public class SyncData {
 				SyncData data = new SyncData();
 				
 				if (doPlayerCheck) {
-					data.playerCount = Bukkit.getOnlinePlayers().length;
+					data.playerCount = Bukkit.getOnlinePlayers().size();
 				}
 				
 				if (doEntityCheck) {
