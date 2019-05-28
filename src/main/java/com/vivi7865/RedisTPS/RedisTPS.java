@@ -7,6 +7,7 @@ import java.net.UnknownHostException;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 import org.apache.commons.net.ntp.NTPUDPClient;
@@ -26,32 +27,32 @@ import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.exceptions.JedisConnectionException;
 
 public class RedisTPS extends JavaPlugin implements Listener {
-	public static File dataFolder;
-	static JedisPool pool;
-	static String serverID;
-	final Runtime runtime = Runtime.getRuntime();
+
+	private static JedisPool pool;
+
+	String getServerID() {
+		return serverID;
+	}
+
+	private static String serverID;
+	private final Runtime runtime = Runtime.getRuntime();
 
 	public void onDisable() {
 		Bukkit.getScheduler().cancelTasks(this);
-		Jedis rsc = pool.getResource();
-		if (rsc != null) {
-			try {
+			try ( Jedis rsc = pool.getResource();) {
 	            rsc.del("RedisTPS.heartbeat." + serverID);
 	            rsc.del("RedisTPS.tps." + serverID);
 	            rsc.del("RedisTPS.players." + serverID);
 	            rsc.del("RedisTPS.ram_total." + serverID);
 	            rsc.del("RedisTPS.ram_free." + serverID);
 	            rsc.del("RedisTPS.ram_max." + serverID);
-	        } finally {
-	            pool.returnResource(rsc);
 	        }
 	        pool.destroy();
-		}
 	}
 
 
 	public void onEnable() {
-		dataFolder = this.getDataFolder();
+		File dataFolder = this.getDataFolder();
 		
 		saveDefaultConfig();
 		new Config(this, dataFolder);
@@ -108,16 +109,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
             		getLogger().warning("Not connected to Redis!");
             		return;
             	}
-
-            	Jedis rsc = null;
-            	try {
-            		rsc = pool.getResource();
-            	} catch (JedisConnectionException e) {
-            		getLogger().log(Level.SEVERE, "Unable to obtain valid Redis resource, did your Redis server go away?");
-            	}
-            	
-            	if (rsc != null) {
-	                try {
+            	try (Jedis rsc = pool.getResource()){
 	                    Pipeline pipeline = rsc.pipelined();
 	                    if (doHeartbeat) {
 							pipeline.set("RedisTPS.heartbeat." + serverID, String.valueOf(time));
@@ -141,7 +133,7 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	    								List<Entity> entities = data.allEntities.get(w);
 	    								
 	    								pipeline.set("RedisTPS.entities." + serverID + "." + w.getName(), String.valueOf(entities.size()));
-	    								pipeline.set("RedisTPS.livingentities." + serverID + "."  + w.getName(), String.valueOf(Iterables.size(Iterables.filter(entities, LivingEntity.class))));
+	    								pipeline.set("RedisTPS.livingentities." + serverID + "."  + w.getName(), String.valueOf(entities.stream().filter(LivingEntity.class::isInstance).count()));
 	    								pipeline.expire("RedisTPS.entities." + serverID + "."  + w.getName(), (Config.intervalEntities + 5));
 	    		                        pipeline.expire("RedisTPS.livingentities." + serverID + "."  + w.getName(), (Config.intervalEntities + 5));
 	    							}
@@ -179,18 +171,14 @@ public class RedisTPS extends JavaPlugin implements Listener {
 	                        pipeline.expire("RedisTPS.ram_free." + serverID, (Config.intervalMemory + 5));
 	                    }
 	                } catch (JedisConnectionException e) {
-	                    getLogger().log(Level.SEVERE, "Unable to refresh stats, did your Redis server go away?", e);
-	                    pool.returnBrokenResource(rsc);
-	                } finally {
-	                	pool.returnResource(rsc);
+						getLogger().log(Level.SEVERE, "Unable to obtain valid Redis resource, did your Redis server go away?");
 	                }
-            	}
             }
         }, 200L, 20L);
 		
 	}
 	
-	public long getTime() {
+	private long getTime() {
 		
 		try { 
 			NTPUDPClient timeClient = new NTPUDPClient();
@@ -201,14 +189,14 @@ public class RedisTPS extends JavaPlugin implements Listener {
 			Date time = new Date(returnTime);
 			return time.getTime();
 		} catch (UnknownHostException e) {
-			getLogger().log(Level.SEVERE, "Unknown host, did your NTP server host is wrong?", e);
+			getLogger().log(Level.SEVERE, "Unknown host, is your NTP server host is wrong?", e);
 		} catch (IOException e) {
 			getLogger().log(Level.SEVERE, "Unable to get time from NTP server, did your NTP server go away?", e);
 		}
 		return 0;
 	}
 	
-	public void setServerID(String serverID) {
+	void setServerID(String serverID) {
 		RedisTPS.serverID = serverID;
 	}
 
@@ -216,19 +204,19 @@ public class RedisTPS extends JavaPlugin implements Listener {
 		return pool;
 	}
 
-	public void setPool(JedisPool pool) {
+	void setPool(JedisPool pool) {
 		RedisTPS.pool = pool;
 	}
 	
-	public final int getFreeRam() {
+	final int getFreeRam() {
         return Math.round((float)(runtime.freeMemory() / 1048576L));
     }
  
-	public final int getMaxRam() {
+	final int getMaxRam() {
         return Math.round((float)(runtime.maxMemory() / 1048576L));
     }
 
-    public final int getTotalRam() {
+    final int getTotalRam() {
         return Math.round((float)(runtime.totalMemory() / 1048576L));
     }
     

@@ -1,5 +1,5 @@
 name: RedisTPS
-version: ${pom.version}
+version: ${project.version}
 main: com.vivi7865.RedisTPS.RedisTPS
 author: vivi7865
-softdepend: [Multiverse-Core, My Worlds]
+softdepend: [Multiverse-Core]
